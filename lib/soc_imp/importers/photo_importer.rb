@@ -7,11 +7,13 @@ module SocImp
 
       def self.import_by_tag_from_twitter(tag)
         Twitter.configure do |config|
-          config.consumer_key = 'a0CwBDOfP3OAigOeLamiCA'
-          config.consumer_secret = 'SHdGnNvE107ehMRUzNXTQkTBLdF8RbXu5m3sjMDwfQ'
-          config.oauth_token = '707298103-EMwxfIBUOuSDdmjzNpD28BgingbZQo7M3ukF8iW9'
-          config.oauth_token_secret = 'Ibww354fZqiseVvS6c6v8CTBHg9I8ChN3X1VxxFz2g'
+          config.consumer_key = SocImp::Config.twitter_consumer_key
+          config.consumer_secret = SocImp::Config.twitter_consumer_secret
+          config.oauth_token = SocImp::Config.twitter_oauth_token
+          config.oauth_token_secret = SocImp::Config.twitter_oauth_token_secret
         end
+
+        @tumblr_consumer_key = !SocImp::Config.twitter_consumer_key.nil? ? SocImp::Config.twitter_consumer_key : ''
 
         retry_attempts = 0
         begin
@@ -23,7 +25,7 @@ module SocImp
             retry_attempts += 1
             sleep 5
             retry
-          # If we've exhausted all retry attempts, then stop and raise original error.            
+          # If we've exhausted all retry attempts, then stop and raise original error.
           else
             raise
           end
@@ -39,6 +41,8 @@ module SocImp
         feed_items.each do |item|
           # Check if there are any included images (hosted by Twitter),
           # then import those.
+          photo = nil
+
           if item.media.any?
             item.media.each do |media|
               photo = {
@@ -47,8 +51,12 @@ module SocImp
                 from_user_username: item.from_user,
                 from_user_full_name: item.from_user_name,
                 from_user_id: item.from_user_id,
-                twitter_image_service: :twitter
+                twitter_image_service: :twitter,
+                url: media.media_url
               }
+              puts "PHOTO: #{photo}"
+              puts "Downloading..."
+
               # download_and_save_photo(:twitter, media.media_url, photo)
             end
           # If there are no included images, then check if there are any images
@@ -57,23 +65,26 @@ module SocImp
             item.urls.each do |url|
               photo_url = !url.expanded_url.blank? ? url.expanded_url : url.url
               photo = twitter_external_photo(photo_url)
-              puts "PHOTO: #{photo}"
-              puts "Downloading..."
 
               # If we found a photo, then save it
-            #  unless photo.nil?
-            #    attrs = {
-            #      photo_id: photo[:id],
-            #      caption: item.text,
-            #      from_user_username: item.from_user,
-            #      from_user_full_name: item.from_user_name,
-            #      from_user_id: item.from_user_id,
-            #      twitter_image_service: photo[:twitter_image_service]
-            #    }
-            #    # download_and_save_photo(:twitter, photo[:url], attrs)
-            #  end
+              unless photo.nil?
+                # attrs = {
+                #   photo_id: photo[:id],
+                #   caption: item.text,
+                #   from_user_username: item.from_user,
+                #   from_user_full_name: item.from_user_name,
+                #   from_user_id: item.from_user_id,
+                #   twitter_image_service: photo[:twitter_image_service]
+                # }
+                # download_and_save_photo(:twitter, photo[:url], attrs)
+
+                puts "PHOTO: #{photo}"
+                puts "Downloading..."
+              end
             end
           end
+
+          download(photo[:url]) unless photo.nil?
         end
       end
 
@@ -92,14 +103,12 @@ module SocImp
 
         # If there is no match, check if the URL redirects to another, and if it does,
         # call this function again with the redirect URL.
-        # If there is no redirect, then the method ends.
         if match.nil?
           begin
             conn = Faraday.new(url: photo_url) do |faraday|
               faraday.request :url_encoded
             end
             expanded_photo_url = conn.get(photo_url).response_headers['location']
-            puts expanded_photo_url
             # expanded_photo_url = HTTParty.get(photo_url, follow_redirects: false).headers["location"]
           rescue StandardError # If there is any error, just continue to the next item.
             # If the request times out or we get a bad URL, continue to the next item.
@@ -120,7 +129,7 @@ module SocImp
             end
           # Pull image from Tumblr
           when 'tumblr.com', 'tmblr.co'
-            unless self.tumblr_consumer_key.blank?
+            unless @tumblr_consumer_key.blank?
               # If this is a tmblr.co URL, then it must be a redirect.
               if (/tmblr\.co/ =~ photo_url) >= 0
                 begin
@@ -164,56 +173,89 @@ module SocImp
         return nil
       end
 
-      def save_imported_photo(service, photo_url, attrs)
-        # Save the image only if it doesn't already exist in our database
-        if !self.photos.where(original_photo_id: attrs[:photo_id].to_s, from_service: service.to_s).exists?
-          # Get the URL of this image and save it, if we get a response from the server
-          begin
-            response = HTTParty.get(photo_url)
-          rescue Timeout::Error
-            # Try again once if the request times out, then quit.
-            begin
-              response = HTTParty.get(photo_url)
-            rescue StandardError
-              return nil
-            end
-          rescue StandardError
-            return nil
+      def self.download(photo_url)
+        puts photo_url
+        conn = Faraday.new(url: photo_url) do |faraday|
+          faraday.request :url_encoded
+        end
+        response = conn.get(photo_url)
+
+        puts response.status
+        puts response.headers
+
+        if response.status == 200
+          # Get the type of image file. There may not be an extension, so let's look at the mime type.
+          case response.headers['content-type']
+          when "image/jpeg"
+            ext = ".jpg"
+          when "image/png"
+            ext = ".png"
+          when "image/gif"
+            ext = ".gif"
           end
-          if response.code == 200
-            # Get the type of image file. There may not be an extension, so let's look at the mime type.
-            case response.headers['content-type']
-            when "image/jpeg"
-              ext = ".jpg"
-            when "image/png"
-              ext = ".png"
-            when "image/gif"
-              ext = ".gif"
-            end
-            # Make a temporary image file and save it if the file is good
-            FileUtils.mkdir_p("#{Rails.root}/tmp/images/#{service.to_s}") # Make the temp directory if one doesn't exist
 
-            File.open("#{Rails.root}/tmp/images/#{service.to_s}/#{attrs[:photo_id]}#{ext}", "w") do |file|
-              file.binmode # File must be opened in binary mode
+          # Make a temporary image file and save it if the file is correct.
+          # Make the temp directory if one doesn't exist
+          timestamp = Time.now.to_i
+          FileUtils.mkdir_p("#{Rails.root}/tmp/images")
+          puts "#{Rails.root}/tmp/images/#{timestamp}#{ext}"
+          File.open("#{Rails.root}/tmp/images/#{timestamp}#{ext}", "w") do |file|
+            file.binmode # File must be opened in binary mode
 
-              # Save the file
-              file << response.body
-
-              # Save the photo info
-              photo = self.photos.new
-              photo.file.store! file
-              photo[:from_service] = service.to_s
-              photo[:from_twitter_image_service] = attrs[:twitter_image_service]
-              photo[:original_photo_id] = attrs[:photo_id]
-              photo[:caption] = attrs[:caption]
-              photo[:from_user_username] = attrs[:from_user_username]
-              photo[:from_user_full_name] = attrs[:from_user_full_name]
-              photo[:from_user_id] = attrs[:from_user_id]
-
-              photo.save
-            end
+            # Save the file
+            file << response.body
           end
         end
+
+#        # Save the image only if it doesn't already exist in our database
+#        if !self.photos.where(original_photo_id: attrs[:photo_id].to_s, from_service: service.to_s).exists?
+#          # Get the URL of this image and save it, if we get a response from the server
+#          begin
+#            response = HTTParty.get(photo_url)
+#          rescue Timeout::Error
+#            # Try again once if the request times out, then quit.
+#            begin
+#              response = HTTParty.get(photo_url)
+#            rescue StandardError
+#              return nil
+#            end
+#          rescue StandardError
+#            return nil
+#          end
+#          if response.code == 200
+#            # Get the type of image file. There may not be an extension, so let's look at the mime type.
+#            case response.headers['content-type']
+#            when "image/jpeg"
+#              ext = ".jpg"
+#            when "image/png"
+#              ext = ".png"
+#            when "image/gif"
+#              ext = ".gif"
+#            end
+#            # Make a temporary image file and save it if the file is good
+#            FileUtils.mkdir_p("#{Rails.root}/tmp/images/#{service.to_s}") # Make the temp directory if one doesn't exist
+#
+#            File.open("#{Rails.root}/tmp/images/#{service.to_s}/#{attrs[:photo_id]}#{ext}", "w") do |file|
+#              file.binmode # File must be opened in binary mode
+#
+#              # Save the file
+#              file << response.body
+#
+#              # Save the photo info
+#              photo = self.photos.new
+#              photo.file.store! file
+#              photo[:from_service] = service.to_s
+#              photo[:from_twitter_image_service] = attrs[:twitter_image_service]
+#              photo[:original_photo_id] = attrs[:photo_id]
+#              photo[:caption] = attrs[:caption]
+#              photo[:from_user_username] = attrs[:from_user_username]
+#              photo[:from_user_full_name] = attrs[:from_user_full_name]
+#              photo[:from_user_id] = attrs[:from_user_id]
+#
+#              photo.save
+#            end
+#          end
+#        end
       end
     end
   end

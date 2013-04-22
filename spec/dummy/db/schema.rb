@@ -49,12 +49,8 @@ ActiveRecord::Schema.define(:version => 20130419213206) do
     t.string   "instagram_client_id"
     t.string   "tumblr_consumer_key"
     t.datetime "last_imported_at"
-    t.datetime "created_at",                 :null => false
-    t.datetime "updated_at",                 :null => false
-    t.string   "twitter_consumer_key"
-    t.string   "twitter_consumer_secret"
-    t.string   "twitter_oauth_token"
-    t.string   "twitter_oauth_token_secret"
+    t.datetime "created_at",            :null => false
+    t.datetime "updated_at",            :null => false
   end
 
 end

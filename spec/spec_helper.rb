@@ -3,10 +3,19 @@ ENV["RAILS_ENV"] ||= 'test'
 require File.expand_path("../dummy/config/environment", __FILE__)
 require 'rspec/rails'
 require 'rspec/autorun'
+# require 'webmock/rspec'
+# require 'vcr'
 
 # Requires supporting ruby files with custom matchers and macros, etc,
 # in spec/support/ and its subdirectories.
 Dir[Rails.root.join("spec/support/**/*.rb")].each {|f| require f}
+
+#VCR.configure do |c|
+#  c.cassette_library_dir = 'spec/cassettes'
+#  c.hook_into :webmock
+#  c.configure_rspec_metadata!
+#  # c.debug_logger = File.open('vcr_log.txt', 'w')
+#end
 
 RSpec.configure do |config|
   # ## Mock Framework
