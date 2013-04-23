@@ -8,6 +8,34 @@ module SocImp
       attr_accessor :facebook_access_token
       attr_accessor :tumblr_consumer_key
       attr_accessor :instagram_client_id
+
+      attr_accessor :fog_provider
+      attr_accessor :fog_directory
+      attr_accessor :aws_access_key_id
+      attr_accessor :aws_secret_access_key
+
+      attr_accessor :connection_retry_attempts
+
+      def reset
+        # For Twitter variables, the Twitter gem will automatically search
+        # for ENV variables if values are nil in config.
+        @twitter_consumer_key = nil
+        @twitter_consumer_secret = nil
+        @twitter_oauth_token = nil
+        @twitter_oauth_token_secret = nil
+        @facebook_access_token = nil
+        @tumblr_consumer_key = nil
+        @instagram_client_id = nil
+
+        @fog_provider = ENV['FOG_PROVIDER']
+        @fog_directory = ENV['FOG_DIRECTORY']
+        @aws_access_key_id = ENV['AWS_ACCESS_KEY_ID']
+        @aws_secret_access_key = ENV['AWS_SECRET_ACCESS_KEY']
+
+        @connection_retry_attempts = 3
+      end
     end
+
+    self.reset
   end
 end
