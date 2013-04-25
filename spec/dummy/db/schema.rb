@@ -11,7 +11,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20130423203600) do
+ActiveRecord::Schema.define(:version => 20130425211106) do
 
   create_table "soc_imp_photo_tags", :force => true do |t|
     t.integer  "photo_id",                     :null => false
@@ -31,7 +31,6 @@ ActiveRecord::Schema.define(:version => 20130423203600) do
     t.string   "user_id"
     t.string   "service",                             :null => false
     t.string   "image_service"
-    t.string   "post_id"
     t.boolean  "approved",         :default => false, :null => false
     t.integer  "position",         :default => 0,     :null => false
     t.datetime "created_at",                          :null => false

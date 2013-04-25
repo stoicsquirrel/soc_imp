@@ -1,8 +1,26 @@
-require "fog"
+require 'twitter'
+require 'instagram'
+require 'fog'
 
 module SocImp
   module Importers
     module PhotoImporter
+      def self.create_twitter_connection
+        Twitter.configure do |config|
+          config.consumer_key = SocImp::Config.twitter_consumer_key
+          config.consumer_secret = SocImp::Config.twitter_consumer_secret
+          config.oauth_token = SocImp::Config.twitter_oauth_token
+          config.oauth_token_secret = SocImp::Config.twitter_oauth_token_secret
+        end
+      end
+
+      def self.create_instagram_connection
+        Instagram.configure do |config|
+          config.client_id = SocImp::Config.instagram_client_id
+          # config.client_secret = "YOUR_CLIENT_SECRET"
+        end
+      end
+
       def self.create_aws_fog_connection
         @fog_connection ||= Fog::Storage.new({
           provider: SocImp::Config.fog_provider,
@@ -11,24 +29,26 @@ module SocImp
         })
       end
 
-      def self.import_by_tag(tag)
-        # create_aws_fog_connection
-        import_by_tag_from_twitter(tag)
+      def self.import(q)
+        import_from_twitter(q)
+
+        if q.start_with? '@'
+          search_type = :name
+          # import_by_name_from_facebook(q)
+        elsif q.start_with? '#'
+          search_type = :tag
+          import_by_tag_from_instagram(q.gsub('#', ''))
+          # import_by_tag_from_tumblr(q)
+        end
       end
 
-      def self.import_by_tag_from_twitter(tag)
-        Twitter.configure do |config|
-          config.consumer_key = SocImp::Config.twitter_consumer_key
-          config.consumer_secret = SocImp::Config.twitter_consumer_secret
-          config.oauth_token = SocImp::Config.twitter_oauth_token
-          config.oauth_token_secret = SocImp::Config.twitter_oauth_token_secret
-        end
-
-        @tumblr_consumer_key = !SocImp::Config.twitter_consumer_key.nil? ? SocImp::Config.twitter_consumer_key : ''
+      def self.import_from_twitter(q)
+        create_aws_fog_connection if SocImp::Config.fog_provider == :aws
+        create_twitter_connection
 
         retry_attempts = 0
         begin
-          results = Twitter.search("##{tag}", include_entities: true, count: 100).results
+          results = Twitter.search("#{q}", include_entities: true, count: 100).results
         # If Twitter is over capacity, unavailable, or can't be reached, then
         # wait five seconds and try again until retry attempts are exhausted.
         rescue Twitter::Error::ServiceUnavailable, Twitter::Error::ClientError
@@ -45,10 +65,36 @@ module SocImp
         save_photos_from_twitter_feed(results)
       end
 
+      def self.import_by_tag_from_instagram(tag)
+        create_aws_fog_connection if SocImp::Config.fog_provider == :aws
+        create_instagram_connection
+
+        results = Instagram.tag_recent_media(tag)
+        results.each do |item|
+          photo = nil
+
+          if !Photo.where(original_id: item.id).exists?
+            photo = Photo.new(
+              caption: item.caption.text,
+              user_screen_name: item.user.username,
+              user_full_name: item.user.full_name,
+              user_id: item.user.id,
+              service: 'instagram',
+              original_id: item.id,
+              url: item.images.standard_resolution.url
+            )
+            item.tags.each do |tag|
+              photo.photo_tags << PhotoTag.new(text: tag, original: true)
+            end
+          end
+
+          download_and_save_photo(photo) unless photo.nil?
+        end
+      end
+
       private
 
       def self.save_photos_from_twitter_feed(feed_items)
-        puts "parse"
         feed_items.each do |item|
           # Check if there are any included images (hosted by Twitter),
           # then import those.
@@ -59,7 +105,7 @@ module SocImp
               # Create a photo object if the media type is "photo", and the photo
               # object does not exist in the database.
               if media.class == Twitter::Media::Photo && !Photo.where(original_id: media.id.to_s).exists?
-                photo = Photo.new({
+                photo = Photo.new(
                   caption: item.text,
                   user_screen_name: item.from_user,
                   user_full_name: item.from_user_name,
@@ -68,13 +114,13 @@ module SocImp
                   image_service: 'twitter',
                   original_id: media.id.to_s,
                   url: media.media_url
-                })
+                )
                 item.hashtags.each do |hashtag|
                   photo.photo_tags << PhotoTag.new(text: hashtag.text, original: true)
                 end
               end
 
-              # download_and_save_photo(:twitter, media.media_url, photo)
+              download_and_save_photo(photo) unless photo.nil?
             end
           # If there are no included images, then check if there are any images
           # hosted on other services such as Twitpic, YFrog, etc.
@@ -99,18 +145,22 @@ module SocImp
 #              end
 #            end
           end
-
-          unless photo.nil?
-            file = download_file(photo)
-
-            # if use local file system...
-              photo.file = file.to_path
-            # else if use s3...
-              #photo.file = "path s3"
-            # end
-            photo.save
-          end
         end
+      end
+
+      def self.download_and_save_photo(photo)
+        file = download_file(photo)
+
+        #if SocImp::Config.fog_provider == :aws
+          photo.file = store_file(file)
+        #end
+
+        # if use local file system...
+          # photo.file = file
+        # else if use s3...
+          #photo.file = "path s3"
+        # end
+        photo.save
       end
 
       # Recursive function to open URLs and search for photos.
@@ -200,6 +250,7 @@ module SocImp
 
       def self.download_file(photo)
         response = Faraday.get(photo.url)
+        file = nil
 
         if response.status == 200
           # Get the type of image file. There may not be an extension, so let's look at the mime type.
@@ -218,18 +269,33 @@ module SocImp
           d = Date.today
           dir = "#{Rails.root}/tmp/images/#{d.year}/#{d.month}/#{d.day}"
           FileUtils.mkdir_p(dir)
-          tempfile = File.open("#{dir}/#{filename}", "w") do |file|
+          file = File.open("#{dir}/#{filename}", "w") do |file|
             file.binmode # File must be opened in binary mode
 
             # Save the file
             file << response.body
           end
         end
+
+        return file.path unless file.nil?
       end
 
       def self.store_file(file_name)
         File.open(file_name) do |file|
+          # directory = @fog_connection.directories.create(
+          #   key: "soc-imp-test",
+          #   public: true
+          # )
+          directory = @fog_connection.directories.get(SocImp::Config.fog_directory)
+          fog_file = directory.files.create(
+            key: File.basename(file_name),
+            body: file,
+            public: true
+          )
 
+          if SocImp::Config.fog_provider == :aws
+            stored_file_name = "http://#{SocImp::Config.fog_directory}.s3.amazonaws.com/#{fog_file.key}"
+          end
         end
       end
     end

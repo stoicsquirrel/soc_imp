@@ -14,6 +14,7 @@ VCR.configure do |c|
   c.cassette_library_dir = 'spec/cassettes'
   c.hook_into :webmock
   c.configure_rspec_metadata!
+  # c.default_cassette_options = { :re_record_interval => 7.days }
   # c.debug_logger = File.open('vcr_log.txt', 'w')
 end
 
