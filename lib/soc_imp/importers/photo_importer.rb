@@ -17,7 +17,6 @@ module SocImp
       def self.create_instagram_connection
         Instagram.configure do |config|
           config.client_id = SocImp::Config.instagram_client_id
-          # config.client_secret = "YOUR_CLIENT_SECRET"
         end
       end
 
@@ -164,12 +163,6 @@ module SocImp
         file = download_file(photo)
 
         photo.file = store_file(file).public_url
-
-        # if use local file system...
-          # photo.file = file
-        # else if use s3...
-          #photo.file = "path s3"
-        # end
         photo.save
       end
 

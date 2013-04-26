@@ -5,8 +5,11 @@ describe SocImp::Importers::PhotoImporter do
     # Test uploading files on local file system only, except where specified.
     SocImp.config do |c|
       c.fog_provider = :local
-      c.fog_directory = 'soc-imp-test'
     end
+  end
+
+  describe ".import" do
+
   end
 
   describe ".import_from_twitter" do
@@ -52,6 +55,30 @@ describe SocImp::Importers::PhotoImporter do
       end
 
       expect(SocImp::Photo).to have(twitter_photo_count).photos
+    end
+
+    it "uploads photos to S3" do
+      # Test uploading files to S3.
+      SocImp.config do |c|
+        c.fog_provider = :aws
+      end
+
+      VCR.use_cassette('twitter_tweets_by_tag_with_photos') do
+        SocImp::Importers::PhotoImporter.import_from_twitter(search_term)
+      end
+
+      bucket = SocImp::config.fog_directory
+      # Take a sample photo and match the final URL with the expected URL on S3.
+      expect(SocImp::Photo.first.file).to match(/https?:\/\/#{bucket}\.s3\.amazonaws\.com\/.+/)
+
+      # Delete files uploaded in this test from S3.
+      connection = SocImp::Importers::PhotoImporter.create_fog_connection
+      directory = connection.directories.get(SocImp::Config.fog_directory)
+      SocImp::Photo.all.each do |photo|
+        base_file_name = File.basename(photo.file)
+        file = directory.files.new(key: base_file_name)
+        file.destroy
+      end
     end
 
     context "by user name" do
