@@ -10,6 +10,8 @@ SocImp.config do |c|
   c.fog_directory = 'soc-imp-test'
   c.aws_access_key_id = "AKIAITADPSWHGYY64TTA"
   c.aws_secret_access_key = "/uIqBFH+x8Aae1cE9yDd/SVYfMvCRA/jr6YDmVk0"
+  c.local_root = './spec/dummy/tmp/images/'
+  c.local_endpoint = 'http://localhost'
 
   # c.connection_retry_attempts = 3
 end

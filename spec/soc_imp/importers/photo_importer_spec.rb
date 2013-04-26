@@ -2,14 +2,10 @@ require 'spec_helper'
 
 describe SocImp::Importers::PhotoImporter do
   before do
-    # TODO: Fix this!
-    SocImp::Importers::PhotoImporter.stub(:store_path) do |file_name|
-      if SocImp::Config.fog_provider == :aws
-        base_file_name = File.basename(file_name)
-        "http://#{SocImp::Config.fog_directory}.s3.amazonaws.com/#{base_file_name}"
-      else
-        nil
-      end
+    # Test uploading files on local file system only, except where specified.
+    SocImp.config do |c|
+      c.fog_provider = :local
+      c.fog_directory = 'soc-imp-test'
     end
   end
 

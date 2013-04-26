@@ -21,12 +21,24 @@ module SocImp
         end
       end
 
-      def self.create_aws_fog_connection
-        @fog_connection ||= Fog::Storage.new({
-          provider: SocImp::Config.fog_provider,
-          aws_access_key_id: SocImp::Config.aws_access_key_id,
-          aws_secret_access_key: SocImp::Config.aws_secret_access_key
-        })
+      def self.create_fog_connection
+        case SocImp::Config.fog_provider
+        when :aws
+          @aws_fog_connection ||= Fog::Storage.new({
+            provider: SocImp::Config.fog_provider,
+            aws_access_key_id: SocImp::Config.aws_access_key_id,
+            aws_secret_access_key: SocImp::Config.aws_secret_access_key
+          })
+          @fog_connection = @aws_fog_connection
+        else
+          @local_fog_connection ||= Fog::Storage.new({
+            provider: SocImp::Config.fog_provider,
+            local_root: SocImp::Config.local_root,
+            endpoint: SocImp::Config.local_endpoint
+          })
+          @fog_connection = @local_fog_connection
+        end
+        @fog_connection
       end
 
       def self.import(q)
@@ -43,7 +55,7 @@ module SocImp
       end
 
       def self.import_from_twitter(q)
-        create_aws_fog_connection if SocImp::Config.fog_provider == :aws
+        create_fog_connection
         create_twitter_connection
 
         retry_attempts = 0
@@ -66,7 +78,7 @@ module SocImp
       end
 
       def self.import_by_tag_from_instagram(tag)
-        create_aws_fog_connection if SocImp::Config.fog_provider == :aws
+        create_fog_connection
         create_instagram_connection
 
         results = Instagram.tag_recent_media(tag)
@@ -151,9 +163,7 @@ module SocImp
       def self.download_and_save_photo(photo)
         file = download_file(photo)
 
-        #if SocImp::Config.fog_provider == :aws
-          photo.file = store_file(file)
-        #end
+        photo.file = store_file(file).public_url
 
         # if use local file system...
           # photo.file = file
@@ -282,20 +292,23 @@ module SocImp
 
       def self.store_file(file_name)
         File.open(file_name) do |file|
-          # directory = @fog_connection.directories.create(
-          #   key: "soc-imp-test",
-          #   public: true
-          # )
+          # Get the fog directory (bucket).
           directory = @fog_connection.directories.get(SocImp::Config.fog_directory)
+          # If the fog directory does not exist, create it if allowed by config.
+          if directory.nil? && SocImp::Config.auto_create_fog_directory
+            directory = @fog_connection.directories.get(
+              key: SocImp::Config.fog_directory,
+              public: true
+            )
+          end
+
+          # Upload the file contents.
           fog_file = directory.files.create(
             key: File.basename(file_name),
             body: file,
             public: true
           )
-
-          if SocImp::Config.fog_provider == :aws
-            stored_file_name = "http://#{SocImp::Config.fog_directory}.s3.amazonaws.com/#{fog_file.key}"
-          end
+          fog_file
         end
       end
     end
