@@ -11,11 +11,10 @@ Installation
 SocImp is not yet available on RubyGems as it is very early in its development.
 The easiest way is using [Bundler](http://gembundler.com/):
 
-1. The easiest way is using Bundler:
-    - In your Gemfile:
+In your Gemfile:
 
-        gem 'soc_imp', :git => 'git@github.com:stoicsquirrel/soc_imp.git'
+    gem 'soc_imp', :git => 'git@github.com:stoicsquirrel/soc_imp.git'
 
-    - In your application directory:
+In your application directory:
 
-        $ bundle install
+    $ bundle install
