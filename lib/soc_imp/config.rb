@@ -5,9 +5,11 @@ module SocImp
       attr_accessor :twitter_consumer_secret
       attr_accessor :twitter_oauth_token
       attr_accessor :twitter_oauth_token_secret
-      attr_accessor :facebook_access_token
-      attr_accessor :tumblr_consumer_key
+
       attr_accessor :instagram_client_id
+
+      attr_accessor :tumblr_consumer_key
+      attr_accessor :tumblr_consumer_secret
 
       attr_accessor :fog_provider
       attr_accessor :fog_directory
@@ -26,9 +28,11 @@ module SocImp
         @twitter_consumer_secret = nil
         @twitter_oauth_token = nil
         @twitter_oauth_token_secret = nil
-        @facebook_access_token = nil
-        @tumblr_consumer_key = nil
+
         @instagram_client_id = nil
+
+        @tumblr_consumer_key = nil
+        @tumblr_consumer_secret = nil
 
         @fog_provider = ENV['FOG_PROVIDER']
         @fog_directory = ENV['FOG_DIRECTORY']

@@ -6,6 +6,7 @@ PATH
       fog
       instagram
       rails (~> 3.2.13)
+      tumblr_client
       twitter (~> 4.6)
 
 GEM
@@ -86,6 +87,7 @@ GEM
       net-ssh (>= 2.6.5)
     net-ssh (2.6.7)
     nokogiri (1.5.9)
+    oauth (0.4.7)
     pg (0.15.1)
     polyglot (0.3.3)
     pry (0.9.12.1)
@@ -143,6 +145,11 @@ GEM
     treetop (1.4.12)
       polyglot
       polyglot (>= 0.3.1)
+    tumblr_client (0.7.1)
+      faraday (>= 0.8)
+      faraday_middleware (>= 0.8)
+      json
+      oauth
     twitter (4.6.2)
       faraday (~> 0.8, < 0.10)
       multi_json (~> 1.0)

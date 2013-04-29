@@ -1,6 +1,10 @@
 require 'twitter'
 require 'instagram'
+require 'tumblr_client'
 require 'fog'
+
+# TODO: DELETE FILES FROM LOCAL STORAGE
+# TODO: Make twitter/instagram/tumblr_client gems optional
 
 module SocImp
   module Importers
@@ -18,6 +22,26 @@ module SocImp
         Instagram.configure do |config|
           config.client_id = SocImp::Config.instagram_client_id
         end
+      end
+
+      def self.create_tumblr_connection
+        # consumer = OAuth::Consumer.new(
+        #   SocImp::Config.tumblr_consumer_key,
+        #   SocImp::Config.tumblr_consumer_secret, {
+        #     site: "https://www.tumblr.com",
+        #     http_method: :post,
+        #     request_token_path: "/oauth/request_token",
+        #     access_token_path: "/oauth/access_token",
+        #     authorize_path: "/oauth/authorize"
+        #   }
+        # )
+
+        Tumblr.configure do |config|
+          config.consumer_key = SocImp::Config.tumblr_consumer_key
+          config.consumer_secret = SocImp::Config.tumblr_consumer_secret
+        end
+
+        @tumblr_client ||= Tumblr::Client.new
       end
 
       def self.create_fog_connection
@@ -100,6 +124,32 @@ module SocImp
           end
 
           download_and_save_photo(photo) unless photo.nil?
+        end
+      end
+
+      def self.import_by_tag_from_tumblr(tag)
+        create_fog_connection
+        create_tumblr_connection
+
+        results = @tumblr_client.tagged(tag) #, format: "text")
+
+        results.each do |item|
+          if item["photos"].any? && !Photo.where(original_id: item["id"].to_s).exists?
+            item["photos"].each do |photo_item|
+              photo = Photo.new(
+                caption: item["caption"],
+                user_screen_name: item["blog_name"],
+                service: 'tumblr',
+                original_id: item["id"].to_s,
+                url: photo_item["original_size"]["url"]
+              )
+              item["tags"].each do |tag|
+                photo.photo_tags << PhotoTag.new(text: tag, original: true)
+              end
+
+              download_and_save_photo(photo) unless photo.nil?
+            end
+          end
         end
       end
 

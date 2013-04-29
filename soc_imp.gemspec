@@ -18,6 +18,7 @@ Gem::Specification.new do |s|
   s.add_dependency "rails", "~> 3.2.13"
   s.add_dependency "faraday"
   s.add_dependency "twitter", "~> 4.6"
+  s.add_dependency "tumblr_client"
   s.add_dependency "instagram"
   s.add_dependency "fog"
 

@@ -6,6 +6,9 @@ SocImp.config do |c|
 
   c.instagram_client_id = 'ea10f8876e7047f68a87ce7029ad7655'
 
+  c.tumblr_consumer_key = "NDFiR3cHIcdgh11SjVO4ZCLK2jA6oMTRjdlFlFED84ta7QKh8q"
+  c.tumblr_consumer_secret = "fSzBLT317jGXDJcAG350RK2Xrs071SpHpJlRPBzCdXFuzD7GF7"
+
   c.fog_provider = :aws
   c.fog_directory = 'soc-imp-test'
   c.aws_access_key_id = "AKIAITADPSWHGYY64TTA"

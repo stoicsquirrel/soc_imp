@@ -16,7 +16,7 @@ describe SocImp::Importers::PhotoImporter do
     let(:search_term) { "#grumpycat" }
 
     let(:twitter_results) do
-      VCR.use_cassette('twitter_tweets_by_tag') do
+      VCR.use_cassette('twitter_tweets_by_tag_with_photos') do
         Twitter.search("#{search_term}", include_entities: true, count: 100).results
       end
     end
@@ -58,6 +58,8 @@ describe SocImp::Importers::PhotoImporter do
     end
 
     it "uploads photos to S3" do
+      pending "may not need to test connection to S3"
+
       # Test uploading files to S3.
       SocImp.config do |c|
         c.fog_provider = :aws
@@ -85,7 +87,7 @@ describe SocImp::Importers::PhotoImporter do
       let(:search_term) { "@WilliamShatner" }
 
       let(:twitter_results) do
-        VCR.use_cassette('twitter_tweets_by_name') do
+        VCR.use_cassette('twitter_tweets_by_name_with_photos') do
           Twitter.search("#{search_term}", include_entities: true, count: 100).results
         end
       end
@@ -104,7 +106,7 @@ describe SocImp::Importers::PhotoImporter do
     let(:tag) { "grumpycat" }
 
     let(:instagram_results) do
-      VCR.use_cassette('instagram_posts_by_tag') do
+      VCR.use_cassette('instagram_posts_by_tag_with_photos') do
         Instagram.tag_recent_media(tag)
       end
     end
@@ -127,6 +129,33 @@ describe SocImp::Importers::PhotoImporter do
       end
 
       expect(SocImp::Photo).to have(instagram_photo_count).photos
+    end
+  end
+
+  describe ".import_by_tag_from_tumblr" do
+    let(:tag) { "grumpycat" }
+
+    let(:tumblr_results) do
+      client = Tumblr::Client.new
+      VCR.use_cassette('tumblr_posts_by_tag_with_photos') do
+        client.tagged(tag)
+      end
+    end
+
+    let(:tumblr_photo_count) do
+      count = 0
+      tumblr_results.each do |item|
+        count += item["photos"].count
+      end
+      count
+    end
+
+    it "imports photos from Tumblr by tag" do
+      VCR.use_cassette('tumblr_posts_by_tag_with_photos') do
+        SocImp::Importers::PhotoImporter.import_by_tag_from_tumblr(tag)
+      end
+
+      expect(SocImp::Photo).to have(tumblr_photo_count).photos
     end
   end
 end
