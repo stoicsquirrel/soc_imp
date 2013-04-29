@@ -4,6 +4,7 @@ require 'tumblr_client'
 require 'fog'
 
 # TODO: DELETE FILES FROM LOCAL STORAGE
+# TODO: Tumblr tag search should go into more pages
 # TODO: Make twitter/instagram/tumblr_client gems optional
 
 module SocImp
@@ -69,11 +70,10 @@ module SocImp
 
         if q.start_with? '@'
           search_type = :name
-          # import_by_name_from_facebook(q)
         elsif q.start_with? '#'
           search_type = :tag
           import_by_tag_from_instagram(q.gsub('#', ''))
-          # import_by_tag_from_tumblr(q)
+          import_by_tag_from_tumblr(q.gsub('#', ''))
         end
       end
 
@@ -153,8 +153,6 @@ module SocImp
         end
       end
 
-      private
-
       def self.save_photos_from_twitter_feed(feed_items)
         feed_items.each do |item|
           # Check if there are any included images (hosted by Twitter),
@@ -208,6 +206,8 @@ module SocImp
           end
         end
       end
+
+      protected
 
       def self.download_and_save_photo(photo)
         file = download_file(photo)

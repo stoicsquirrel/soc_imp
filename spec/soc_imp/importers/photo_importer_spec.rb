@@ -39,6 +39,50 @@ describe SocImp::Importers::PhotoImporter do
       count
     end
 
+    let(:one_photo) do
+      photo_found = false
+
+      results = []
+      VCR.use_cassette('twitter_tweets_short') do
+        results = Twitter.search(search_term, include_entities: true, count: 15).results
+      end
+
+      results.each do |item|
+        # Check if there are any included images (hosted by Twitter),
+        # then import those.
+        photo = nil
+
+        if item.media.any?
+          item.media.each do |media|
+            # Create a photo object if the media type is "photo", and the photo
+            # object does not exist in the database.
+            if media.class == Twitter::Media::Photo
+              photo = SocImp::Photo.new(
+                caption: item.text,
+                user_screen_name: item.from_user,
+                user_full_name: item.from_user_name,
+                user_id: item.from_user_id,
+                service: 'twitter',
+                image_service: 'twitter',
+                original_id: media.id.to_s,
+                url: media.media_url
+              )
+              item.hashtags.each do |hashtag|
+                photo.photo_tags << SocImp::PhotoTag.new(text: hashtag.text, original: true)
+              end
+
+              photo_found = true
+              break
+            end
+          end
+        end
+
+        break if photo_found
+      end
+
+      "http://localhost/one_photo_test.jpg"
+    end
+
     it "imports photos from Twitter" do
       VCR.use_cassette('twitter_tweets_by_tag_with_photos') do
         SocImp::Importers::PhotoImporter.import_from_twitter(search_term)
@@ -55,6 +99,10 @@ describe SocImp::Importers::PhotoImporter do
       end
 
       expect(SocImp::Photo).to have(twitter_photo_count).photos
+    end
+
+    it "creates Photo objects with the correct information" do
+      puts one_photo
     end
 
     it "uploads photos to S3" do
