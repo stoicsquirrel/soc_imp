@@ -1,11 +1,6 @@
-require 'twitter'
-require 'instagram'
-require 'tumblr_client'
 require 'fog'
 
-# TODO: DELETE FILES FROM LOCAL STORAGE
-# TODO: Tumblr tag search should go into more pages
-# TODO: Make twitter/instagram/tumblr_client gems optional
+# TODO: Tumblr tag search should go into more pages?
 
 module SocImp
   module Importers
@@ -26,17 +21,6 @@ module SocImp
       end
 
       def self.create_tumblr_connection
-        # consumer = OAuth::Consumer.new(
-        #   SocImp::Config.tumblr_consumer_key,
-        #   SocImp::Config.tumblr_consumer_secret, {
-        #     site: "https://www.tumblr.com",
-        #     http_method: :post,
-        #     request_token_path: "/oauth/request_token",
-        #     access_token_path: "/oauth/access_token",
-        #     authorize_path: "/oauth/authorize"
-        #   }
-        # )
-
         Tumblr.configure do |config|
           config.consumer_key = SocImp::Config.tumblr_consumer_key
           config.consumer_secret = SocImp::Config.tumblr_consumer_secret
@@ -78,6 +62,7 @@ module SocImp
       end
 
       def self.import_from_twitter(q)
+        require 'twitter'
         create_fog_connection
         create_twitter_connection
 
@@ -101,6 +86,7 @@ module SocImp
       end
 
       def self.import_by_tag_from_instagram(tag)
+        require 'instagram'
         create_fog_connection
         create_instagram_connection
 
@@ -128,6 +114,7 @@ module SocImp
       end
 
       def self.import_by_tag_from_tumblr(tag)
+        require 'tumblr_client'
         create_fog_connection
         create_tumblr_connection
 
@@ -339,7 +326,7 @@ module SocImp
           directory = @fog_connection.directories.get(SocImp::Config.fog_directory)
           # If the fog directory does not exist, create it if allowed by config.
           if directory.nil? && SocImp::Config.auto_create_fog_directory
-            directory = @fog_connection.directories.get(
+            directory = @fog_connection.directories.create(
               key: SocImp::Config.fog_directory,
               public: true
             )
@@ -353,6 +340,15 @@ module SocImp
           )
           fog_file
         end
+      end
+
+      def self.require_if_installed(gem_name)
+        result = false
+        if Gem::Specification.find_all_by_name(gem_name).any?
+          require gem_name
+          result = true
+        end
+        result
       end
     end
   end

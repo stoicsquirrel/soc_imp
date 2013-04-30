@@ -16,5 +16,7 @@ SocImp.config do |c|
   c.local_root = './spec/dummy/tmp/images/'
   c.local_endpoint = 'http://localhost'
 
+  c.auto_create_fog_directory = true
+
   # c.connection_retry_attempts = 3
 end

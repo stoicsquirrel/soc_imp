@@ -1,13 +1,10 @@
 PATH
   remote: .
   specs:
-    soc_imp (0.0.1)
+    soc_imp (0.1.0)
       faraday
       fog
-      instagram
       rails (~> 3.2.13)
-      tumblr_client
-      twitter (~> 4.6)
 
 GEM
   remote: http://rubygems.org/
@@ -164,10 +161,13 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  instagram
   jquery-rails
   pg
   pry-rails
   rspec-rails (~> 2.0)
   soc_imp!
+  tumblr_client
+  twitter (~> 4.6)
   vcr
   webmock (>= 1.8.0, < 1.10)

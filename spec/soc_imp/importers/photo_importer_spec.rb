@@ -2,9 +2,20 @@ require 'spec_helper'
 
 describe SocImp::Importers::PhotoImporter do
   before do
-    # Test uploading files on local file system only, except where specified.
+    # Test uploading files on local file system only, unless specified.
     SocImp.config do |c|
       c.fog_provider = :local
+    end
+  end
+
+  after do
+    # Delete all uploaded or saved files.
+    connection = SocImp::Importers::PhotoImporter.create_fog_connection
+    directory = connection.directories.get(SocImp::Config.fog_directory)
+    SocImp::Photo.all.each do |photo|
+      base_file_name = File.basename(photo.file)
+      file = directory.files.new(key: base_file_name)
+      file.destroy
     end
   end
 
@@ -39,48 +50,14 @@ describe SocImp::Importers::PhotoImporter do
       count
     end
 
-    let(:one_photo) do
-      photo_found = false
-
-      results = []
-      VCR.use_cassette('twitter_tweets_short') do
-        results = Twitter.search(search_term, include_entities: true, count: 15).results
-      end
-
-      results.each do |item|
-        # Check if there are any included images (hosted by Twitter),
-        # then import those.
-        photo = nil
-
-        if item.media.any?
-          item.media.each do |media|
-            # Create a photo object if the media type is "photo", and the photo
-            # object does not exist in the database.
-            if media.class == Twitter::Media::Photo
-              photo = SocImp::Photo.new(
-                caption: item.text,
-                user_screen_name: item.from_user,
-                user_full_name: item.from_user_name,
-                user_id: item.from_user_id,
-                service: 'twitter',
-                image_service: 'twitter',
-                original_id: media.id.to_s,
-                url: media.media_url
-              )
-              item.hashtags.each do |hashtag|
-                photo.photo_tags << SocImp::PhotoTag.new(text: hashtag.text, original: true)
-              end
-
-              photo_found = true
-              break
-            end
+    let(:twitter_first_item_with_photo) do
+      twitter_results.each do |item|
+        item.media.each do |media|
+          if media.class == Twitter::Media::Photo
+            return item
           end
         end
-
-        break if photo_found
       end
-
-      "http://localhost/one_photo_test.jpg"
     end
 
     it "imports photos from Twitter" do
@@ -101,8 +78,24 @@ describe SocImp::Importers::PhotoImporter do
       expect(SocImp::Photo).to have(twitter_photo_count).photos
     end
 
-    it "creates Photo objects with the correct information" do
-      puts one_photo
+    it "imports photos from Twitter and saves with the correct data" do
+      VCR.use_cassette('twitter_tweets_by_tag_with_photos') do
+        SocImp::Importers::PhotoImporter.import_from_twitter(search_term)
+      end
+
+      # Take only the first photo as a sample.
+      photo = SocImp::Photo.first
+      expect(photo.caption).to eq(twitter_first_item_with_photo.text)
+      expect(photo.user_screen_name).to eq(twitter_first_item_with_photo.from_user)
+      expect(photo.user_full_name).to eq(twitter_first_item_with_photo.from_user_name)
+      expect(photo.user_id).to eq(twitter_first_item_with_photo.from_user_id)
+      expect(photo.service).to eq("twitter")
+      expect(photo.original_id).to eq(twitter_first_item_with_photo.media[0].id.to_s)
+
+      # Match the final URL with the local URL set in config.
+      bucket = SocImp::Config.fog_directory
+      domain = SocImp::config.local_endpoint
+      expect(photo.file).to match(/#{domain}\/#{bucket}\/.+/)
     end
 
     it "uploads photos to S3" do
@@ -117,18 +110,9 @@ describe SocImp::Importers::PhotoImporter do
         SocImp::Importers::PhotoImporter.import_from_twitter(search_term)
       end
 
-      bucket = SocImp::config.fog_directory
       # Take a sample photo and match the final URL with the expected URL on S3.
+      bucket = SocImp::config.fog_directory
       expect(SocImp::Photo.first.file).to match(/https?:\/\/#{bucket}\.s3\.amazonaws\.com\/.+/)
-
-      # Delete files uploaded in this test from S3.
-      connection = SocImp::Importers::PhotoImporter.create_fog_connection
-      directory = connection.directories.get(SocImp::Config.fog_directory)
-      SocImp::Photo.all.each do |photo|
-        base_file_name = File.basename(photo.file)
-        file = directory.files.new(key: base_file_name)
-        file.destroy
-      end
     end
 
     context "by user name" do

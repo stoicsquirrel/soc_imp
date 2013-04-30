@@ -9,7 +9,7 @@ Gem::Specification.new do |s|
   s.version     = SocImp::VERSION
   s.authors     = ["Alex Melman"]
   s.email       = ["amelman5@gmail.com"]
-  s.homepage    = "TODO"
+  s.homepage    = "https://github.com/stoicsquirrel"
   s.summary     = "Social Importer"
   s.description = "Imports assets from social media, including Twitter, Instagram, and Tumblr."
 
@@ -17,13 +17,13 @@ Gem::Specification.new do |s|
 
   s.add_dependency "rails", "~> 3.2.13"
   s.add_dependency "faraday"
-  s.add_dependency "twitter", "~> 4.6"
-  s.add_dependency "tumblr_client"
-  s.add_dependency "instagram"
   s.add_dependency "fog"
 
   s.add_development_dependency "pg"
   s.add_development_dependency "rspec-rails", "~> 2.0"
   s.add_development_dependency "webmock", [">= 1.8.0", "< 1.10"]
   s.add_development_dependency "vcr"
+  s.add_development_dependency "twitter", "~> 4.6"
+  s.add_development_dependency "tumblr_client"
+  s.add_development_dependency "instagram"
 end
