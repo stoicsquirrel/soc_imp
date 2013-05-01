@@ -1,4 +1,6 @@
 SocImp.config do |config|
+  config.search_terms = ['#squirrel', '#grumpycat']
+
   config.twitter_consumer_key = 'QQbgU6Z3lMfXLtSqNYpVw'
   config.twitter_consumer_secret = 'RKXo9Rtk5w52Mrik9M1GoG0Rc85UhFD6UOK0aErrLSk'
   config.twitter_oauth_token = '707298103-EMwxfIBUOuSDdmjzNpD28BgingbZQo7M3ukF8iW9'

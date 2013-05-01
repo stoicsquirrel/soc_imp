@@ -1,6 +1,8 @@
 module SocImp
   module Config
     class << self
+      attr_accessor :search_terms
+
       attr_accessor :twitter_consumer_key
       attr_accessor :twitter_consumer_secret
       attr_accessor :twitter_oauth_token
@@ -22,6 +24,8 @@ module SocImp
       attr_accessor :connection_retry_attempts
 
       def reset
+        @search_terms = []
+
         # For Twitter variables, the Twitter gem will automatically search
         # for ENV variables if values are nil in config.
         @twitter_consumer_key = nil

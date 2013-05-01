@@ -1,4 +1,6 @@
 SocImp.config do |config|
+  # config.search_terms = []
+
   # config.twitter_consumer_key = ''
   # config.twitter_consumer_secret = ''
   # config.twitter_oauth_token = ''

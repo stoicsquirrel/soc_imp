@@ -18,3 +18,10 @@ In your Gemfile:
 In your application directory:
 
     $ bundle install
+
+SocImp relies on the Twitter, Tumblr, and Instagram gems for access to their
+respective services. Add them to your Gemfile as needed:
+
+    gem 'twitter', '~> 4.0'
+    gem 'tumblr_client'
+    gem 'instagram'
