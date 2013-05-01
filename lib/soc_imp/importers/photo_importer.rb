@@ -55,86 +55,92 @@ module SocImp
         if q.start_with? '@'
           search_type = :name
         elsif q.start_with? '#'
-          search_type = :tag
-          import_by_tag_from_instagram(q.gsub('#', ''))
-          import_by_tag_from_tumblr(q.gsub('#', ''))
+          tag = q.gsub('#', '')
+          import_by_tag_from_instagram(tag)
+          import_by_tag_from_tumblr(tag)
         end
       end
 
       def self.import_from_twitter(q)
-        require 'twitter'
-        create_fog_connection
-        create_twitter_connection
+        if gem_installed?('twitter')
+          require 'twitter'
+          create_fog_connection
+          create_twitter_connection
 
-        retry_attempts = 0
-        begin
-          results = Twitter.search("#{q}", include_entities: true, count: 100).results
-        # If Twitter is over capacity, unavailable, or can't be reached, then
-        # wait five seconds and try again until retry attempts are exhausted.
-        rescue Twitter::Error::ServiceUnavailable, Twitter::Error::ClientError
-          if retry_attempts < SocImp::Config.connection_retry_attempts
-            retry_attempts += 1
-            sleep 5
-            retry
-          # If we've exhausted all retry attempts, then stop and raise original error.
-          else
-            raise
-          end
-        end
-
-        save_photos_from_twitter_feed(results)
-      end
-
-      def self.import_by_tag_from_instagram(tag)
-        require 'instagram'
-        create_fog_connection
-        create_instagram_connection
-
-        results = Instagram.tag_recent_media(tag)
-        results.each do |item|
-          photo = nil
-
-          if !Photo.where(original_id: item.id).exists?
-            photo = Photo.new(
-              caption: item.caption.text,
-              user_screen_name: item.user.username,
-              user_full_name: item.user.full_name,
-              user_id: item.user.id,
-              service: 'instagram',
-              original_id: item.id,
-              url: item.images.standard_resolution.url
-            )
-            item.tags.each do |tag|
-              photo.photo_tags << PhotoTag.new(text: tag, original: true)
+          retry_attempts = 0
+          begin
+            results = Twitter.search("#{q}", include_entities: true, count: 100).results
+          # If Twitter is over capacity, unavailable, or can't be reached, then
+          # wait five seconds and try again until retry attempts are exhausted.
+          rescue Twitter::Error::ServiceUnavailable, Twitter::Error::ClientError
+            if retry_attempts < SocImp::Config.connection_retry_attempts
+              retry_attempts += 1
+              sleep 5
+              retry
+            # If we've exhausted all retry attempts, then stop and raise original error.
+            else
+              raise
             end
           end
 
-          download_and_save_photo(photo) unless photo.nil?
+          save_photos_from_twitter_feed(results)
+        end
+      end
+
+      def self.import_by_tag_from_instagram(tag)
+        if gem_installed?('instagram')
+          require 'instagram'
+          create_fog_connection
+          create_instagram_connection
+
+          results = Instagram.tag_recent_media(tag)
+          results.each do |item|
+            photo = nil
+
+            if !Photo.where(original_id: item.id).exists?
+              photo = Photo.new(
+                caption: item.caption.text,
+                user_screen_name: item.user.username,
+                user_full_name: item.user.full_name,
+                user_id: item.user.id,
+                service: 'instagram',
+                original_id: item.id,
+                url: item.images.standard_resolution.url
+              )
+              item.tags.each do |tag|
+                photo.photo_tags << PhotoTag.new(text: tag, original: true)
+              end
+            end
+
+            download_and_save_photo(photo) unless photo.nil?
+          end
         end
       end
 
       def self.import_by_tag_from_tumblr(tag)
-        require 'tumblr_client'
-        create_fog_connection
-        create_tumblr_connection
+        if gem_installed?('tumblr_client')
+          require 'tumblr_client'
+          create_fog_connection
+          create_tumblr_connection
 
-        results = @tumblr_client.tagged(tag) #, format: "text")
+          results = @tumblr_client.tagged(tag) #, format: "text")
 
-        results.each do |item|
-          if item["photos"].any? && !Photo.where(original_id: item["id"].to_s).exists?
-            item["photos"].each do |photo_item|
-              photo = Photo.new(
-                caption: item["caption"],
-                user_screen_name: item["blog_name"],
-                service: 'tumblr',
-                original_id: item["id"].to_s,
-                url: photo_item["original_size"]["url"]
-              )
-              item["tags"].each do |tag|
-                photo.photo_tags << PhotoTag.new(text: tag, original: true)
+          results.each do |item|
+            if item["type"] == "photo" && !Photo.where(original_id: item["id"].to_s).exists?
+              item["photos"].each do |photo_item|
+                photo = Photo.new(
+                  caption: item["caption"],
+                  user_screen_name: item["blog_name"],
+                  service: 'tumblr',
+                  original_id: item["id"].to_s,
+                  url: photo_item["original_size"]["url"]
+                )
+                item["tags"].each do |tag|
+                  photo.photo_tags << PhotoTag.new(text: tag, original: true)
+                end
+
+                download_and_save_photo(photo) unless photo.nil?
               end
-
-              download_and_save_photo(photo) unless photo.nil?
             end
           end
         end
@@ -344,11 +350,15 @@ module SocImp
 
       def self.require_if_installed(gem_name)
         result = false
-        if Gem::Specification.find_all_by_name(gem_name).any?
+        if gem_installed?(gem_name)
           require gem_name
           result = true
         end
         result
+      end
+
+      def self.gem_installed?(gem_name)
+        Gem::Specification.find_all_by_name(gem_name).any?
       end
     end
   end
