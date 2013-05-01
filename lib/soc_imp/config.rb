@@ -34,7 +34,7 @@ module SocImp
         @tumblr_consumer_key = nil
         @tumblr_consumer_secret = nil
 
-        @fog_provider = ENV['FOG_PROVIDER']
+        @fog_provider = ENV['FOG_PROVIDER'] || :localhost
         @fog_directory = ENV['FOG_DIRECTORY']
         @auto_create_fog_directory = false
         @aws_access_key_id = ENV['AWS_ACCESS_KEY_ID']

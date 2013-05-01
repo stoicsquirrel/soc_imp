@@ -13,7 +13,7 @@ Gem::Specification.new do |s|
   s.summary     = "Social Importer"
   s.description = "Imports assets from social media, including Twitter, Instagram, and Tumblr."
 
-  s.files = Dir["{app,config,db,lib}/**/*"] + ["MIT-LICENSE", "Rakefile", "README.rdoc"]
+  s.files = Dir["{app,config,db,lib}/**/*"] + ["MIT-LICENSE", "Rakefile", "README.md"]
 
   s.add_dependency "rails", "~> 3.2.13"
   s.add_dependency "faraday"
