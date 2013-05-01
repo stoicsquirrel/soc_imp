@@ -19,37 +19,82 @@ describe SocImp::Importers::PhotoImporter do
     end
   end
 
-  describe ".import" do
+  let(:search_term) { "#grumpycat" }
 
+  let(:tag) { search_term.gsub('#', '') }
+
+  let(:twitter_results) do
+    VCR.use_cassette('all_posts_by_tag_with_photos') do
+      Twitter.search("#{search_term}", include_entities: true, count: 100).results
+    end
   end
 
-  describe ".import_from_twitter" do
-    let(:search_term) { "#grumpycat" }
-
-    let(:twitter_results) do
-      VCR.use_cassette('twitter_tweets_by_tag_with_photos') do
-        Twitter.search("#{search_term}", include_entities: true, count: 100).results
-      end
-    end
-
-    let(:twitter_photo_count) do
-      ids = []
-      count = 0
-      twitter_results.each do |item|
-        if item.media.any?
-          # We need to iterate through all the media in order to check for duplicates.
-          # Multiple tweets can reference the same media item.
-          item.media.each do |media|
-            if media.class == Twitter::Media::Photo && !ids.include?(media.id.to_s)
-              ids << media.id.to_s
-              count += 1
-            end
+  let(:twitter_photo_count) do
+    ids = []
+    count = 0
+    twitter_results.each do |item|
+      if item.media.any?
+        # We need to iterate through all the media in order to check for duplicates.
+        # Multiple tweets can reference the same media item.
+        item.media.each do |media|
+          if media.class == Twitter::Media::Photo && !ids.include?(media.id.to_s)
+            ids << media.id.to_s
+            count += 1
           end
         end
       end
-      count
+    end
+    count
+  end
+
+  let(:instagram_results) do
+    VCR.use_cassette('all_posts_by_tag_with_photos') do
+      Instagram.tag_recent_media(tag)
+    end
+  end
+
+  let(:instagram_photo_count) do
+    ids = []
+    count = 0
+    instagram_results.each do |item|
+      if !ids.include?(item.id)
+        ids << item.id
+        count += 1
+      end
+    end
+    count
+  end
+
+  let(:tumblr_results) do
+    client = Tumblr::Client.new
+    VCR.use_cassette('all_posts_by_tag_with_photos') do
+      client.tagged(tag)
+    end
+  end
+
+  let(:tumblr_photo_count) do
+    count = 0
+    tumblr_results.each do |item|
+      count += item["photos"].count if item["type"] == "photo"
+    end
+    count
+  end
+
+  describe ".import" do
+    let(:photo_count) do
+      twitter_photo_count + instagram_photo_count + tumblr_photo_count
     end
 
+    it "imports photos from all services by tag" do
+      VCR.use_cassette('all_posts_by_tag_with_photos') do
+        SocImp::Importers::PhotoImporter.import(search_term)
+      end
+
+      expect(SocImp::Photo).to have(photo_count).photos
+    end
+  end
+
+  describe ".import_from_twitter" do
     let(:twitter_first_item_with_photo) do
       twitter_results.each do |item|
         item.media.each do |media|
@@ -61,7 +106,7 @@ describe SocImp::Importers::PhotoImporter do
     end
 
     it "imports photos from Twitter" do
-      VCR.use_cassette('twitter_tweets_by_tag_with_photos') do
+      VCR.use_cassette('all_posts_by_tag_with_photos') do
         SocImp::Importers::PhotoImporter.import_from_twitter(search_term)
       end
 
@@ -70,7 +115,7 @@ describe SocImp::Importers::PhotoImporter do
 
     it "imports a photo from Twitter only once" do
       2.times do
-        VCR.use_cassette('twitter_tweets_by_tag_with_photos') do
+        VCR.use_cassette('all_posts_by_tag_with_photos') do
           SocImp::Importers::PhotoImporter.import_from_twitter(search_term)
         end
       end
@@ -79,7 +124,7 @@ describe SocImp::Importers::PhotoImporter do
     end
 
     it "imports photos from Twitter and saves with the correct data" do
-      VCR.use_cassette('twitter_tweets_by_tag_with_photos') do
+      VCR.use_cassette('all_posts_by_tag_with_photos') do
         SocImp::Importers::PhotoImporter.import_from_twitter(search_term)
       end
 
@@ -106,7 +151,7 @@ describe SocImp::Importers::PhotoImporter do
         c.fog_provider = :aws
       end
 
-      VCR.use_cassette('twitter_tweets_by_tag_with_photos') do
+      VCR.use_cassette('all_posts_by_tag_with_photos') do
         SocImp::Importers::PhotoImporter.import_from_twitter(search_term)
       end
 
@@ -135,28 +180,8 @@ describe SocImp::Importers::PhotoImporter do
   end
 
   describe ".import_by_tag_from_instagram" do
-    let(:tag) { "grumpycat" }
-
-    let(:instagram_results) do
-      VCR.use_cassette('instagram_posts_by_tag_with_photos') do
-        Instagram.tag_recent_media(tag)
-      end
-    end
-
-    let(:instagram_photo_count) do
-      ids = []
-      count = 0
-      instagram_results.each do |item|
-        if !ids.include?(item.id)
-          ids << item.id
-          count += 1
-        end
-      end
-      count
-    end
-
     it "imports photos from Instagram by tag" do
-      VCR.use_cassette('instagram_posts_by_tag_with_photos') do
+      VCR.use_cassette('all_posts_by_tag_with_photos') do
         SocImp::Importers::PhotoImporter.import_by_tag_from_instagram(tag)
       end
 
@@ -165,25 +190,8 @@ describe SocImp::Importers::PhotoImporter do
   end
 
   describe ".import_by_tag_from_tumblr" do
-    let(:tag) { "grumpycat" }
-
-    let(:tumblr_results) do
-      client = Tumblr::Client.new
-      VCR.use_cassette('tumblr_posts_by_tag_with_photos') do
-        client.tagged(tag)
-      end
-    end
-
-    let(:tumblr_photo_count) do
-      count = 0
-      tumblr_results.each do |item|
-        count += item["photos"].count
-      end
-      count
-    end
-
     it "imports photos from Tumblr by tag" do
-      VCR.use_cassette('tumblr_posts_by_tag_with_photos') do
+      VCR.use_cassette('all_posts_by_tag_with_photos') do
         SocImp::Importers::PhotoImporter.import_by_tag_from_tumblr(tag)
       end
 
