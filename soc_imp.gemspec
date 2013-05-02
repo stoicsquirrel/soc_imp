@@ -9,7 +9,7 @@ Gem::Specification.new do |s|
   s.version     = SocImp::VERSION
   s.authors     = ["Alex Melman"]
   s.email       = ["amelman5@gmail.com"]
-  s.homepage    = "https://github.com/stoicsquirrel"
+  s.homepage    = "https://github.com/stoicsquirrel/soc_imp"
   s.summary     = "Social Importer"
   s.description = "Imports assets from social media, including Twitter, Instagram, and Tumblr."
 
