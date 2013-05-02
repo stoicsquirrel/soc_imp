@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    soc_imp (0.1.1)
+    soc_imp (0.2.0)
       faraday
       fog
       rails (~> 3.2.13)

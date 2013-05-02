@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+0.2.1
+-----
+
+- Added error to the import rake task telling the user if there are no search
+  terms configured.
+
 0.2.0
 -----
 
