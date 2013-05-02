@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+0.2.0
+-----
+
+- Added rake tasks allowing photos to be imported from the command line and
+  from cron jobs.
+
 0.1.1
 -----
 

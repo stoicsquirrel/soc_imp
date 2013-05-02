@@ -51,14 +51,8 @@ module SocImp
 
       def self.import(q)
         import_from_twitter(q)
-
-        if q.start_with? '@'
-          search_type = :name
-        elsif q.start_with? '#'
-          tag = q.gsub('#', '')
-          import_by_tag_from_instagram(tag)
-          import_by_tag_from_tumblr(tag)
-        end
+        import_from_tumblr(q)
+        import_from_instagram(q)
       end
 
       def self.import_from_twitter(q)
@@ -84,6 +78,13 @@ module SocImp
           end
 
           save_photos_from_twitter_feed(results)
+        end
+      end
+
+      def self.import_from_instagram(q)
+        if q.start_with? '#'
+          tag = q.gsub('#', '')
+          import_by_tag_from_instagram(tag)
         end
       end
 
@@ -114,6 +115,13 @@ module SocImp
 
             download_and_save_photo(photo) unless photo.nil?
           end
+        end
+      end
+
+      def self.import_from_tumblr(q)
+        if q.start_with? '#'
+          tag = q.gsub('#', '')
+          import_by_tag_from_tumblr(tag)
         end
       end
 

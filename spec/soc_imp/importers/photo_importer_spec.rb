@@ -19,13 +19,12 @@ describe SocImp::Importers::PhotoImporter do
     end
   end
 
-  let(:search_term) { "#grumpycat" }
-
-  let(:tag) { search_term.gsub('#', '') }
+  let(:tag_search_term) { "#grumpycat" }
+  let(:tag) { tag_search_term.gsub('#', '') }
 
   let(:twitter_results) do
     VCR.use_cassette('all_posts_by_tag_with_photos') do
-      Twitter.search("#{search_term}", include_entities: true, count: 100).results
+      Twitter.search("#{tag_search_term}", include_entities: true, count: 100).results
     end
   end
 
@@ -87,7 +86,7 @@ describe SocImp::Importers::PhotoImporter do
 
     it "imports photos from all services by tag" do
       VCR.use_cassette('all_posts_by_tag_with_photos') do
-        SocImp::Importers::PhotoImporter.import(search_term)
+        SocImp::Importers::PhotoImporter.import(tag_search_term)
       end
 
       expect(SocImp::Photo).to have(photo_count).photos
@@ -107,7 +106,7 @@ describe SocImp::Importers::PhotoImporter do
 
     it "imports photos from Twitter" do
       VCR.use_cassette('all_posts_by_tag_with_photos') do
-        SocImp::Importers::PhotoImporter.import_from_twitter(search_term)
+        SocImp::Importers::PhotoImporter.import_from_twitter(tag_search_term)
       end
 
       expect(SocImp::Photo).to have(twitter_photo_count).photos
@@ -116,7 +115,7 @@ describe SocImp::Importers::PhotoImporter do
     it "imports a photo from Twitter only once" do
       2.times do
         VCR.use_cassette('all_posts_by_tag_with_photos') do
-          SocImp::Importers::PhotoImporter.import_from_twitter(search_term)
+          SocImp::Importers::PhotoImporter.import_from_twitter(tag_search_term)
         end
       end
 
@@ -125,7 +124,7 @@ describe SocImp::Importers::PhotoImporter do
 
     it "imports photos from Twitter and saves with the correct data" do
       VCR.use_cassette('all_posts_by_tag_with_photos') do
-        SocImp::Importers::PhotoImporter.import_from_twitter(search_term)
+        SocImp::Importers::PhotoImporter.import_from_twitter(tag_search_term)
       end
 
       # Take only the first photo as a sample.
@@ -152,7 +151,7 @@ describe SocImp::Importers::PhotoImporter do
       end
 
       VCR.use_cassette('all_posts_by_tag_with_photos') do
-        SocImp::Importers::PhotoImporter.import_from_twitter(search_term)
+        SocImp::Importers::PhotoImporter.import_from_twitter(tag_search_term)
       end
 
       # Take a sample photo and match the final URL with the expected URL on S3.
@@ -161,21 +160,31 @@ describe SocImp::Importers::PhotoImporter do
     end
 
     context "by user name" do
-      let(:search_term) { "@WilliamShatner" }
+      let(:user_name_search_term) { "@WilliamShatner" }
 
       let(:twitter_results) do
         VCR.use_cassette('twitter_tweets_by_name_with_photos') do
-          Twitter.search("#{search_term}", include_entities: true, count: 100).results
+          Twitter.search("#{user_name_search_term}", include_entities: true, count: 100).results
         end
       end
 
       it "imports photos from Twitter by user name" do
         VCR.use_cassette('twitter_tweets_by_name_with_photos') do
-          SocImp::Importers::PhotoImporter.import_from_twitter(search_term)
+          SocImp::Importers::PhotoImporter.import_from_twitter(user_name_search_term)
         end
 
         expect(SocImp::Photo).to have(twitter_photo_count).photos
       end
+    end
+  end
+
+  describe ".import_from_instagram" do
+    it "imports photos from Instagram by tag" do
+      VCR.use_cassette('all_posts_by_tag_with_photos') do
+        SocImp::Importers::PhotoImporter.import_from_instagram(tag_search_term)
+      end
+
+      expect(SocImp::Photo).to have(instagram_photo_count).photos
     end
   end
 
@@ -186,6 +195,16 @@ describe SocImp::Importers::PhotoImporter do
       end
 
       expect(SocImp::Photo).to have(instagram_photo_count).photos
+    end
+  end
+
+  describe ".import_from_tumblr" do
+    it "imports photos from Tumblr by tag" do
+      VCR.use_cassette('all_posts_by_tag_with_photos') do
+        SocImp::Importers::PhotoImporter.import_from_tumblr(tag_search_term)
+      end
+
+      expect(SocImp::Photo).to have(tumblr_photo_count).photos
     end
   end
 
