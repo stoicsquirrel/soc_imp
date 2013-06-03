@@ -6,6 +6,8 @@ Change Log
 
 - Fixed bug causing Instagram and Tumblr importing to silently fail if a query
   does not begin with a '#' or '@' symbol.
+- Twitter import now silently fails if Twitter returns a specific kind of
+  error.
 
 0.2.1
 -----
