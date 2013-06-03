@@ -69,7 +69,7 @@ module SocImp
             results = Twitter.search("#{q}", include_entities: true, count: 100).results
           # If Twitter is over capacity, unavailable, or can't be reached, then
           # wait five seconds and try again until retry attempts are exhausted.
-          rescue Twitter::Error::ServiceUnavailable, Twitter::Error::ClientError, JSON::ParserError
+          rescue StandardError # Twitter::Error::ServiceUnavailable, Twitter::Error::ClientError
             if retry_attempts < SocImp::Config.connection_retry_attempts
               retry_attempts += 1
               sleep 5
