@@ -50,6 +50,9 @@ module SocImp
       end
 
       def self.import(q)
+        # Assume search by tag if query does not start with hash symbol
+        q = "##{q}" unless q.start_with?('#')
+
         import_from_twitter(q)
         import_from_tumblr(q)
         import_from_instagram(q)

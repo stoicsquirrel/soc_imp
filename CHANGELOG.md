@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+0.2.2
+-----
+
+- Fixed bug causing Instagram and Tumblr importing to silently fail if a query
+  does not begin with a '#' or '@' symbol.
+
 0.2.1
 -----
 
